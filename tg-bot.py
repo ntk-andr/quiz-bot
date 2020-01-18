@@ -45,16 +45,15 @@ def handler_message(bot, update):
     global question_count
 
     if update.message.text == 'Новый вопрос':
-        question_count += 1
         filename = QUESTIONS_FILE
         question = get_one_question(filename)
         message_text = question['question']
         answer_text = question['answer']
         chat_id = update.message.chat.id
-        # currently_answer = answer_text.rsplit('.')[0].rsplit('(')[0]
-        # print(currently_answer)
+        question_count = len(list(r.scan_iter(f'{chat_id}_question_*'))) + 1
         set_key = f'{chat_id}_question_{question_count}'
         set_value = json.dumps({
+            'question_count': question_count,
             'question': message_text,
             'answer': answer_text,
         })
@@ -62,6 +61,7 @@ def handler_message(bot, update):
     else:
         chat_id = update.message.chat.id
         answer_user = update.message.text.lower()
+        question_count = len(list(r.scan_iter(f'{chat_id}_question_*')))
         set_key = f'{chat_id}_question_{question_count}'
         set_value = json.loads(r.get(set_key).decode())
         answer = set_value['answer']
