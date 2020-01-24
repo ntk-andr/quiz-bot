@@ -12,4 +12,16 @@
 - Регистрируемся.
 - Добавляем новое приложение.
 - Соединяем с репозиторием.
-- В разделе Settings -> Config Vars добавляем переменные окружения из `.env`.
+- В разделе Settings -> Config Vars добавляем переменные окружения из `.env`.   
+
+
+### Результат:
+
+Telegram:
+
+![Telegram](https://dvmn.org/filer/canonical/1569215494/324/)
+
+---
+Vk: 
+
+![Vk](https://dvmn.org/filer/canonical/1569215498/325/)
