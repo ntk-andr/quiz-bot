@@ -9,7 +9,7 @@ import redis
 
 from questions import get_one_question
 
-from settings import *
+from settings import QUESTIONS_FILE, PROXY_URL, TELEGRAM_TOKEN, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
 
 NEW_QUESTION, SOLUTION_ATTEMPT, SURRENDER = range(3)
 
@@ -57,7 +57,7 @@ def handle_new_question_request(bot, update):
 def handle_solution_attempt(bot, update):
     chat_id = update.message.chat.id
     if update.message.text == 'Сдаться':
-        handler_surrender(bot, update)
+        surrender(bot, update)
         return SURRENDER
 
     answer_user = update.message.text.lower()
@@ -85,7 +85,7 @@ def handle_solution_attempt(bot, update):
     return result
 
 
-def handler_surrender(bot, update):
+def surrender(bot, update):
     chat_id = update.message.chat.id
     question_count = len(list(r.scan_iter(f'{chat_id}_question_*')))
     set_key = f'{chat_id}_question_{question_count}'
@@ -103,9 +103,9 @@ def handler_cancel(bot, update):
 def main():
     if PROXY_URL:
         request_kwargs = {'proxy_url': PROXY_URL}
-        updater = Updater(token=TOKEN_TELEGRAM_BOT, request_kwargs=request_kwargs)
+        updater = Updater(token=TELEGRAM_TOKEN, request_kwargs=request_kwargs)
     else:
-        updater = Updater(token=TOKEN_TELEGRAM_BOT)
+        updater = Updater(token=TELEGRAM_TOKEN)
 
     dp = updater.dispatcher
 

@@ -8,7 +8,7 @@ from vk_api.longpoll import VkLongPoll, VkEventType
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from questions import get_one_question
 
-from settings import *
+from settings import QUESTIONS_FILE, VK_TOKEN, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
 
 
 def get_keyboard():
@@ -79,7 +79,7 @@ def handle_solution_attempt(event, vk_api):
     )
 
 
-def handler_surrender(event, vk_api):
+def surrender(event, vk_api):
     chat_id = event.user_id
     question_count = len(list(r.scan_iter(f'{chat_id}_question_*')))
     set_key = f'{chat_id}_question_{question_count}'
@@ -95,13 +95,13 @@ def handler_surrender(event, vk_api):
 
 if __name__ == "__main__":
     r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, password=REDIS_PASSWORD)
-    vk_session = vk_api.VkApi(token=TOKEN_VK_BOT)
+    vk_session = vk_api.VkApi(token=VK_TOKEN)
     vk_api = vk_session.get_api()
     longpoll = VkLongPoll(vk_session)
     for event in longpoll.listen():
         if event.type == VkEventType.MESSAGE_NEW and event.to_me:
             if event.text == 'Сдаться':
-                handler_surrender(event, vk_api)
+                surrender(event, vk_api)
             if event.text == 'Новый вопрос':
                 handle_new_question_request(event, vk_api)
             else:
