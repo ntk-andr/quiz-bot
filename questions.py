@@ -1,26 +1,33 @@
 import random
 
 
-def get_questions(filename: str):
-    with open(filename, 'r', encoding='KOI8-R') as file:
-        quiz = file.read().split('\n\n\n')
-        dict_questions = dict()
-        a = q = ''
-        for question in quiz:
-            for question_str in question.split('\n\n'):
-
-                if 'Вопрос' in question_str:
-                    q = question_str.replace('\n', ' ')[question_str.find(':') + 1:].strip()
-                if 'Ответ' in question_str:
-                    a = question_str.replace('\n', ' ')[question_str.find(':') + 1:].strip()
-
-                if a and q:
-                    dict_questions[q] = a
-
-    return dict_questions
+def get_text(text: str) -> str:
+    return text.replace('\n', ' ')[text.find(':') + 1:].strip()
 
 
-def get_one_question(filename: str):
+def read_file(filename: str, encoding='KOI8-R') -> list:
+    with open(filename, 'r', encoding=encoding) as file:
+        return file.read().split('\n\n\n')
+
+
+def get_questions(filename: str) -> dict:
+    quiz = read_file(filename)
+    answer = question = ''
+    questions = dict()
+    for quiz_question in quiz:
+        for question_item in quiz_question.split('\n\n'):
+            if 'Вопрос' in question_item:
+                question = get_text(question_item)
+            if 'Ответ' in question_item:
+                answer = get_text(question_item)
+
+            if answer and question:
+                questions[question] = answer
+
+    return questions
+
+
+def get_one_question(filename: str) -> dict:
     questions = list(get_questions(filename).items())
     choice = random.choice(questions)
 
@@ -28,8 +35,3 @@ def get_one_question(filename: str):
         'question': choice[0],
         'answer': choice[1]
     }
-
-# if __name__ == '__main__':
-# dict_q = get_questions('questions/1vs1200.txt')
-# dict_q = get_one_question('questions/1vs1200.txt')
-# print(dict_q)
