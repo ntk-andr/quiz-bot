@@ -37,7 +37,6 @@ def get_message_for_new_question(chat_id, question, r):
         'answer': answer_text,
     }
     save_in_redis(set_key, set_value, r)
-    print('Правильный ответ', answer_text)
     return message_text
 
 
