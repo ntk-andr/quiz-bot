@@ -1,17 +1,12 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-import json
-
 from telegram import ReplyKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, RegexHandler, ConversationHandler
 import logging
 import redis
 
-from questions import get_one_question
+from questions import get_question, read_file, get_result, get_message_for_surrender, get_message_for_new_question
 
-from settings import QUESTIONS_FILE, PROXY_URL, TELEGRAM_TOKEN, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
-
-NEW_QUESTION, SOLUTION_ATTEMPT, SURRENDER = range(3)
+from settings import QUESTIONS_FILE, PROXY_URL, TELEGRAM_TOKEN, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, \
+    SOLUTION_ATTEMPT, NEW_QUESTION
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -34,69 +29,40 @@ def handler_start(bot, update):
 
 
 def error(bot, update, error):
-    logger.warning('Update "%s" caused error "%s"', update, error)
+    message = f'Update {update} caused error {error}'
+    logger.warning(message)
 
 
 def handle_new_question_request(bot, update):
-    question = get_one_question(QUESTIONS_FILE)
-    message_text = question['question']
-    answer_text = question['answer']
+    """Новый вопрос."""
+    question = get_question(read_file(QUESTIONS_FILE))
     chat_id = update.message.chat.id
-    question_count = len(list(r.scan_iter(f'{chat_id}_question_*'))) + 1
-    set_key = f'{chat_id}_question_{question_count}'
-    set_value = json.dumps({
-        'question_count': question_count,
-        'question': message_text,
-        'answer': answer_text,
-    })
-    r.set(set_key, set_value)
+    message_text = get_message_for_new_question(chat_id, question, r)
     update.message.reply_text(message_text)
     return SOLUTION_ATTEMPT
 
 
 def handle_solution_attempt(bot, update):
+    """Попытка ответить"""
     chat_id = update.message.chat.id
-    if update.message.text == 'Сдаться':
-        surrender(bot, update)
-        return SURRENDER
+    answer_user = update.message.text
+    result = get_result(chat_id, answer_user, r)
 
-    answer_user = update.message.text.lower()
-    question_count = len(list(r.scan_iter(f'{chat_id}_question_*')))
-    set_key = f'{chat_id}_question_{question_count}'
-    set_value = json.loads(r.get(set_key).decode())
-    answer = set_value['answer']
-    currently_answer = answer.rsplit('.')[0].rsplit('(')[0].strip().lower()
-    set_value['answer_user'] = answer_user
-
-    if update.message.text != 'Сдаться':
-        message_text = 'Неправильно... Попробуешь ещё раз?'
-        set_value['is_currently'] = 'false'
-        result = SOLUTION_ATTEMPT
-
-    if currently_answer == answer_user:
-        message_text = 'Правильно! Поздравляю! Для следующего вопроса нажми «Новый вопрос»'
-        set_value['is_currently'] = 'true'
-        result = NEW_QUESTION
-
-    set_value = json.dumps(set_value)
-    r.set(set_key, set_value)
-
-    update.message.reply_text(message_text)
-    return result
+    update.message.reply_text(result['message_text'])
+    return NEW_QUESTION if result['set_value']['is_currently'] == 'true' else SOLUTION_ATTEMPT
 
 
 def surrender(bot, update):
+    """Сдаться"""
     chat_id = update.message.chat.id
-    question_count = len(list(r.scan_iter(f'{chat_id}_question_*')))
-    set_key = f'{chat_id}_question_{question_count}'
-    set_value = json.loads(r.get(set_key).decode())
-    message_text = f"Правильный ответ: {set_value['answer']}\nЧтобы продолжить нажми «Новый вопрос»"
+    message_text = get_message_for_surrender(chat_id, r)
     update.message.reply_text(message_text)
     return NEW_QUESTION
 
 
 def handler_cancel(bot, update):
-    update.message.reply_text('Викторина завершена')
+    """Завершение викторины"""
+    update.message.reply_text('Викторина завершена\n/start - для начала')
     return ConversationHandler.END
 
 
@@ -112,8 +78,12 @@ def main():
     handler_conversation = ConversationHandler(
         entry_points=[CommandHandler('start', handler_start)],
         states={
-            NEW_QUESTION: [RegexHandler('^(Новый вопрос)$', handle_new_question_request)],
-            SOLUTION_ATTEMPT: [MessageHandler(Filters.text, handle_solution_attempt)]
+            NEW_QUESTION: [RegexHandler('^Новый вопрос$', handle_new_question_request)],
+            SOLUTION_ATTEMPT: [
+                RegexHandler('^Сдаться$', surrender),
+                RegexHandler('^Новый вопрос$', handle_new_question_request),
+                MessageHandler(Filters.text, handle_solution_attempt),
+            ],
         },
         fallbacks=[CommandHandler('cancel', handler_cancel)]
     )
@@ -121,9 +91,7 @@ def main():
     dp.add_handler(handler_conversation)
 
     dp.add_error_handler(error)
-
     updater.start_polling()
-
     updater.idle()
 
 

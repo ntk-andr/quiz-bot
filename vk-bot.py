@@ -4,10 +4,9 @@ import redis
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
-from questions import get_question, read_file
+from questions import get_question, read_file, get_result, get_message_for_surrender, get_message_for_new_question
 
 from settings import VK_TOKEN, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, QUESTIONS_FILE
-from utils import save_in_redis
 
 
 def get_keyboard():
@@ -31,18 +30,9 @@ def handler_welcome_message(event, vk_api):
 
 def handle_new_question_request(event, vk_api):
     """Новый вопрос."""
-    chat_id = event.user_id
     question = get_question(read_file(QUESTIONS_FILE))
-    message_text = question['question']
-    answer_text = question['answer']
-    question_count = len(list(r.scan_iter(f'{chat_id}_question_*'))) + 1
-    set_key = f'{chat_id}_question_{question_count}'
-    set_value = {
-        'question_count': question_count,
-        'question': message_text,
-        'answer': answer_text,
-    }
-    save_in_redis(set_key, set_value, r)
+    chat_id = event.user_id
+    message_text = get_message_for_new_question(chat_id, question, r)
     return vk_api.messages.send(
         user_id=event.user_id,
         random_id=random.randint(1, 1000),
@@ -53,37 +43,22 @@ def handle_new_question_request(event, vk_api):
 
 def handle_solution_attempt(event, vk_api):
     """Попытка ответа."""
-    set_value = dict()
     chat_id = event.user_id
     answer_user = event.text
-    question_count = len(list(r.scan_iter(f'{chat_id}_question_*')))
-    set_key = f'{chat_id}_question_{question_count}'
-    answer = r.hget(set_key, 'answer').decode()
-    currently_answer = answer.rsplit('.')[0].rsplit('(')[0].strip().lower()
-    set_value['answer_user'] = answer_user
-    message_text = ''
-    if answer_user != 'Сдаться':
-        message_text = 'Неправильно... Попробуешь ещё раз?'
-        set_value['is_currently'] = 'false'
-    if currently_answer == answer_user:
-        message_text = 'Правильно! Поздравляю! Для следующего вопроса нажми «Новый вопрос»'
-        set_value['is_currently'] = 'true'
-    save_in_redis(set_key, set_value, r)
+    result = get_result(chat_id, answer_user, r)
+
     return vk_api.messages.send(
         user_id=event.user_id,
         random_id=random.randint(1, 1000),
         keyboard=get_keyboard(),
-        message=message_text,
+        message=result['message_text'],
     )
 
 
 def surrender(event, vk_api):
     """Сдаться."""
     chat_id = event.user_id
-    question_count = len(list(r.scan_iter(f'{chat_id}_question_*')))
-    set_key = f'{chat_id}_question_{question_count}'
-    answer = r.hget(set_key, 'answer').decode()
-    message_text = f"Правильный ответ: {answer}\nЧтобы продолжить нажми «Новый вопрос»"
+    message_text = get_message_for_surrender(chat_id, r)
     return vk_api.messages.send(
         user_id=event.user_id,
         random_id=random.randint(1, 1000),
