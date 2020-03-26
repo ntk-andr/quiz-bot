@@ -49,7 +49,7 @@ def handle_solution_attempt(bot, update):
     result = get_result(chat_id, answer_user, r)
 
     update.message.reply_text(result['message_text'])
-    return NEW_QUESTION if result['set_value']['is_currently'] == 'true' else SOLUTION_ATTEMPT
+    return NEW_QUESTION if result['fields']['is_currently'] == 'true' else SOLUTION_ATTEMPT
 
 
 def surrender(bot, update):
