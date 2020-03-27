@@ -8,12 +8,6 @@ from questions import get_question, read_file, get_result, get_message_for_surre
 from settings import QUESTIONS_FILE, PROXY_URL, TELEGRAM_TOKEN, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, \
     SOLUTION_ATTEMPT, NEW_QUESTION
 
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.WARNING,
-)
-logger = logging.getLogger(__name__)
-
 
 def get_keyboard():
     keyboard = [['Новый вопрос', 'Сдаться'],
@@ -49,7 +43,7 @@ def handle_solution_attempt(bot, update):
     result = get_result(chat_id, answer_user, r)
 
     update.message.reply_text(result['message_text'])
-    return NEW_QUESTION if result['fields']['is_currently'] == 'true' else SOLUTION_ATTEMPT
+    return NEW_QUESTION if result['fields']['is_currently'] else SOLUTION_ATTEMPT
 
 
 def surrender(bot, update):
@@ -96,5 +90,8 @@ def main():
 
 
 if __name__ == '__main__':
+    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', )
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.WARNING)
     r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, password=REDIS_PASSWORD)
     main()

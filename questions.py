@@ -1,3 +1,4 @@
+import json
 import random
 
 import redis
@@ -5,45 +6,41 @@ import redis
 
 def get_result(chat_id, answer_user, r):
     """получаем результат"""
-    fields = dict()
-    question_count = len(list(r.scan_iter(f'{chat_id}_question_*')))
-    hash_key = f'{chat_id}_question_{question_count}'
-    answer = r.hget(hash_key, 'answer').decode()
-    currently_answer = answer.rsplit('.')[0].rsplit('(')[0].strip().lower()
+    question_count = get_question_count(chat_id, r)
+    fields = json.loads(r.hget(chat_id, question_count))
+    answer = fields['answer']
+    currently_answer = answer.split('.')[0].split('(')[0].strip().lower()
     fields['answer_user'] = answer_user
-    message_text = ''
+    message = ''
     if answer_user != 'Сдаться':
-        message_text = 'Неправильно... Попробуешь ещё раз?'
-        fields['is_currently'] = 'false'
+        message = 'Неправильно... Попробуешь ещё раз?'
+        fields['is_currently'] = False
     elif answer_user == currently_answer:
-        message_text = 'Правильно! Поздравляю! Для следующего вопроса нажми «Новый вопрос»'
-        fields['is_currently'] = 'true'
-    save_in_redis(hash_key, fields, r)
+        message = 'Правильно! Поздравляю! Для следующего вопроса нажми «Новый вопрос»'
+        fields['is_currently'] = True
+    save_in_redis(chat_id, fields, r)
     return {
-        'hash_key': hash_key,
+        'hash_key': chat_id,
         'fields': fields,
-        'message_text': message_text
+        'message_text': message
     }
 
 
 def get_message_for_new_question(chat_id, question, r):
-    message_text = question['question']
-    answer_text = question['answer']
-    question_count = len(list(r.scan_iter(f'{chat_id}_question_*'))) + 1
-    hash_key = f'{chat_id}_question_{question_count}'
+    message = question['question']
+    answer = question['answer']
     fields = {
-        'question_count': question_count,
-        'question': message_text,
-        'answer': answer_text,
+        'question': message,
+        'answer': answer,
     }
-    save_in_redis(hash_key, fields, r)
-    return message_text
+    save_in_redis(chat_id, fields, r)
+    return message
 
 
 def get_message_for_surrender(chat_id, r):
-    question_count = len(list(r.scan_iter(f'{chat_id}_question_*')))
-    hash_key = f'{chat_id}_question_{question_count}'
-    answer = r.hget(hash_key, 'answer').decode()
+    question_count = get_question_count(chat_id, r)
+    result = json.loads(r.hget(chat_id, question_count))
+    answer = result['answer']
     return f"Правильный ответ: {answer}\nЧтобы продолжить нажми «Новый вопрос»"
 
 
@@ -84,7 +81,12 @@ def get_question(text: str) -> dict:
     }
 
 
-def save_in_redis(hash_key: str, fields: dict, r: redis):
-    for key in fields:
-        value = str(fields[key])
-        r.hset(hash_key, key, value)
+def save_in_redis(hash_key, fields: dict, r: redis):
+    count_questions = get_question_count(hash_key, r)
+    key = 1 if count_questions == 0 else count_questions
+    value = json.dumps(fields)
+    r.hset(hash_key, key, value)
+
+
+def get_question_count(hash_key, r):
+    return len(r.hgetall(hash_key))
