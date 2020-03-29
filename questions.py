@@ -1,23 +1,24 @@
 import json
 import random
+import re
 
 import redis
 
 
 def get_result(chat_id, answer_user, r):
     """получаем результат"""
-    question_count = get_question_count(chat_id, r)
-    fields = json.loads(r.hget(chat_id, question_count))
+    fields = get_fields(chat_id, r)
     answer = fields['answer']
-    currently_answer = answer.split('.')[0].split('(')[0].strip().lower()
+    currently_answer = re.split('[.(]', answer)[0].lower()
     fields['answer_user'] = answer_user
-    message = ''
-    if answer_user != 'Сдаться':
-        message = 'Неправильно... Попробуешь ещё раз?'
-        fields['is_currently'] = False
-    elif answer_user == currently_answer:
+
+    if answer_user == currently_answer:
         message = 'Правильно! Поздравляю! Для следующего вопроса нажми «Новый вопрос»'
         fields['is_currently'] = True
+    else:
+        message = 'Неправильно... Попробуешь ещё раз?'
+        fields['is_currently'] = False
+
     save_in_redis(chat_id, fields, r)
     return {
         'hash_key': chat_id,
@@ -26,7 +27,8 @@ def get_result(chat_id, answer_user, r):
     }
 
 
-def get_message_for_new_question(chat_id, question, r):
+def switch_to_next_question(chat_id, question, r):
+    """Выбор нового вопроса."""
     message = question['question']
     answer = question['answer']
     fields = {
@@ -38,18 +40,16 @@ def get_message_for_new_question(chat_id, question, r):
 
 
 def get_message_for_surrender(chat_id, r):
-    question_count = get_question_count(chat_id, r)
-    result = json.loads(r.hget(chat_id, question_count))
-    answer = result['answer']
+    fields = get_fields(chat_id, r)
+    answer = fields['answer']
     return f"Правильный ответ: {answer}\nЧтобы продолжить нажми «Новый вопрос»"
 
 
 def get_text(text: str) -> str:
-    symbol_position = text.find(':') + 1
-    return text.replace('\n', ' ')[symbol_position:].strip()
+    return text.split(':', 1)[1].strip()
 
 
-def read_file(filename: str, encoding='KOI8-R') -> str:
+def read_quiz_file(filename: str, encoding='KOI8-R') -> str:
     with open(filename, 'r', encoding=encoding) as file:
         return file.read()
 
@@ -90,3 +90,8 @@ def save_in_redis(hash_key, fields: dict, r: redis):
 
 def get_question_count(hash_key, r):
     return len(r.hgetall(hash_key))
+
+
+def get_fields(chat_id, r):
+    question_count = get_question_count(chat_id, r)
+    return json.loads(r.hget(chat_id, question_count))

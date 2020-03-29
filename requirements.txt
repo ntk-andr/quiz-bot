@@ -3,3 +3,4 @@ telegram==0.0.1
 vk-api==11.6.1
 redis==3.3.11
 python-dotenv==0.10.3
+flake8==3.7.9

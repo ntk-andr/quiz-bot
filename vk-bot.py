@@ -4,7 +4,7 @@ import redis
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
-from questions import get_question, read_file, get_result, get_message_for_surrender, get_message_for_new_question
+from questions import get_question, read_quiz_file, get_result, get_message_for_surrender, switch_to_next_question
 
 from settings import VK_TOKEN, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, QUESTIONS_FILE
 
@@ -30,9 +30,9 @@ def handler_welcome_message(event, vk_api):
 
 def handle_new_question_request(event, vk_api):
     """Новый вопрос."""
-    question = get_question(read_file(QUESTIONS_FILE))
+    question = get_question(read_quiz_file(QUESTIONS_FILE))
     chat_id = event.user_id
-    message_text = get_message_for_new_question(chat_id, question, r)
+    message_text = switch_to_next_question(chat_id, question, r)
     return vk_api.messages.send(
         user_id=event.user_id,
         random_id=random.randint(1, 1000),

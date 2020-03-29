@@ -3,7 +3,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Regex
 import logging
 import redis
 
-from questions import get_question, read_file, get_result, get_message_for_surrender, get_message_for_new_question
+from questions import get_question, read_quiz_file, get_result, get_message_for_surrender, switch_to_next_question
 
 from settings import QUESTIONS_FILE, PROXY_URL, TELEGRAM_TOKEN, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, \
     SOLUTION_ATTEMPT, NEW_QUESTION
@@ -12,7 +12,6 @@ from settings import QUESTIONS_FILE, PROXY_URL, TELEGRAM_TOKEN, REDIS_HOST, REDI
 def get_keyboard():
     keyboard = [['Новый вопрос', 'Сдаться'],
                 ['Мой счет']]
-
     return ReplyKeyboardMarkup(keyboard)
 
 
@@ -29,15 +28,15 @@ def error(bot, update, error):
 
 def handle_new_question_request(bot, update):
     """Новый вопрос."""
-    question = get_question(read_file(QUESTIONS_FILE))
+    question = get_question(read_quiz_file(QUESTIONS_FILE))
     chat_id = update.message.chat.id
-    message_text = get_message_for_new_question(chat_id, question, r)
+    message_text = switch_to_next_question(chat_id, question, r)
     update.message.reply_text(message_text)
     return SOLUTION_ATTEMPT
 
 
 def handle_solution_attempt(bot, update):
-    """Попытка ответить"""
+    """Попытка ответить."""
     chat_id = update.message.chat.id
     answer_user = update.message.text
     result = get_result(chat_id, answer_user, r)
@@ -47,7 +46,7 @@ def handle_solution_attempt(bot, update):
 
 
 def surrender(bot, update):
-    """Сдаться"""
+    """Сдаться."""
     chat_id = update.message.chat.id
     message_text = get_message_for_surrender(chat_id, r)
     update.message.reply_text(message_text)
@@ -55,7 +54,7 @@ def surrender(bot, update):
 
 
 def handler_cancel(bot, update):
-    """Завершение викторины"""
+    """Завершение викторины."""
     update.message.reply_text('Викторина завершена\n/start - для начала')
     return ConversationHandler.END
 
@@ -66,9 +65,7 @@ def main():
         updater = Updater(token=TELEGRAM_TOKEN, request_kwargs=request_kwargs)
     else:
         updater = Updater(token=TELEGRAM_TOKEN)
-
     dp = updater.dispatcher
-
     handler_conversation = ConversationHandler(
         entry_points=[CommandHandler('start', handler_start)],
         states={
@@ -81,9 +78,7 @@ def main():
         },
         fallbacks=[CommandHandler('cancel', handler_cancel)]
     )
-
     dp.add_handler(handler_conversation)
-
     dp.add_error_handler(error)
     updater.start_polling()
     updater.idle()
