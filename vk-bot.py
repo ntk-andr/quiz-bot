@@ -4,9 +4,10 @@ import redis
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
-from questions import get_question, read_quiz_file, get_result, get_message_for_surrender, switch_to_next_question
+from questions import get_question, read_quiz_file, get_result, get_message_for_surrender, switch_to_next_question, \
+    get_chat_id
 
-from settings import VK_TOKEN, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, QUESTIONS_FILE
+from settings import VK_TOKEN, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, QUESTIONS_FILE, POSTFIX_VK
 
 
 def get_keyboard():
@@ -18,7 +19,7 @@ def get_keyboard():
     return keyboard.get_keyboard()
 
 
-def handler_welcome_message(event, vk_api):
+def start_quiz(event, vk_api):
     """Приветственное сообщение."""
     return vk_api.messages.send(
         user_id=event.user_id,
@@ -28,10 +29,10 @@ def handler_welcome_message(event, vk_api):
     )
 
 
-def handle_new_question_request(event, vk_api):
+def get_new_question(event, vk_api):
     """Новый вопрос."""
     question = get_question(read_quiz_file(QUESTIONS_FILE))
-    chat_id = event.user_id
+    chat_id = get_chat_id(event.user_id, POSTFIX_VK)
     message_text = switch_to_next_question(chat_id, question, r)
     return vk_api.messages.send(
         user_id=event.user_id,
@@ -41,9 +42,9 @@ def handle_new_question_request(event, vk_api):
     )
 
 
-def handle_solution_attempt(event, vk_api):
+def answer_the_question(event, vk_api):
     """Попытка ответа."""
-    chat_id = event.user_id
+    chat_id = get_chat_id(event.user_id, POSTFIX_VK)
     answer_user = event.text
     result = get_result(chat_id, answer_user, r)
 
@@ -55,9 +56,9 @@ def handle_solution_attempt(event, vk_api):
     )
 
 
-def surrender(event, vk_api):
+def get_the_correct_answer(event, vk_api):
     """Сдаться."""
-    chat_id = event.user_id
+    chat_id = get_chat_id(event.user_id, POSTFIX_VK)
     message_text = get_message_for_surrender(chat_id, r)
     return vk_api.messages.send(
         user_id=event.user_id,
@@ -75,10 +76,10 @@ if __name__ == "__main__":
     for event in longpoll.listen():
         if event.type == VkEventType.MESSAGE_NEW and event.to_me:
             if event.text == 'Привет':
-                handler_welcome_message(event, vk_api)
+                start_quiz(event, vk_api)
             elif event.text == 'Сдаться':
-                surrender(event, vk_api)
+                get_the_correct_answer(event, vk_api)
             elif event.text == 'Новый вопрос':
-                handle_new_question_request(event, vk_api)
+                get_new_question(event, vk_api)
             else:
-                handle_solution_attempt(event, vk_api)
+                answer_the_question(event, vk_api)
