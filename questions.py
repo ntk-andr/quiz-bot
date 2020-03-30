@@ -6,18 +6,18 @@ import redis
 
 
 def get_result(chat_id, answer_user, r):
-    """получаем результат"""
+    """Получаем результат."""
     fields = get_fields(chat_id, r)
     answer = fields['answer']
-    currently_answer = re.split('[.(]', answer)[0].lower()
+    answer_correct = re.split('[.(]', answer)[0].lower()
     fields['answer_user'] = answer_user
 
-    if answer_user == currently_answer:
+    if answer_user == answer_correct:
         message = 'Правильно! Поздравляю! Для следующего вопроса нажми «Новый вопрос»'
-        fields['is_currently'] = True
+        fields['is_correct'] = True
     else:
         message = 'Неправильно... Попробуешь ещё раз?'
-        fields['is_currently'] = False
+        fields['is_correct'] = False
 
     save_in_redis(chat_id, fields, r)
     return {
@@ -95,3 +95,7 @@ def get_question_count(hash_key, r):
 def get_fields(chat_id, r):
     question_count = get_question_count(chat_id, r)
     return json.loads(r.hget(chat_id, question_count))
+
+
+def get_chat_id(chat_id, postfix):
+    return f'{chat_id}{postfix}'
