@@ -41,8 +41,8 @@ def get_new_question(bot, update):
 def answer_the_question(bot, update):
     """Попытка ответить."""
     chat_id = get_chat_id(update.message.chat.id, POSTFIX_TELEGRAM)
-    answer_user = update.message.text
-    result = get_result(chat_id, answer_user, r)
+    answer_of_user = update.message.text
+    result = get_result(chat_id, answer_of_user, r)
 
     update.message.reply_text(result['message_text'])
     return NEW_QUESTION if result['fields']['is_correct'] else SOLUTION_ATTEMPT

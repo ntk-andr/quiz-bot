@@ -45,8 +45,8 @@ def get_new_question(event, vk_api):
 def answer_the_question(event, vk_api):
     """Попытка ответа."""
     chat_id = get_chat_id(event.user_id, POSTFIX_VK)
-    answer_user = event.text
-    result = get_result(chat_id, answer_user, r)
+    answer_of_user = event.text
+    result = get_result(chat_id, answer_of_user, r)
 
     return vk_api.messages.send(
         user_id=event.user_id,

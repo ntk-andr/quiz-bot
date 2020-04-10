@@ -5,14 +5,14 @@ import re
 import redis
 
 
-def get_result(chat_id, answer_user, r):
+def get_result(chat_id, answer_of_user, r):
     """Получаем результат."""
     fields = get_fields(chat_id, r)
     answer = fields['answer']
     answer_correct = re.split('[.(]', answer)[0].lower()
-    fields['answer_user'] = answer_user
+    fields['answer_of_user'] = answer_of_user
 
-    if answer_user == answer_correct:
+    if answer_of_user == answer_correct:
         message = 'Правильно! Поздравляю! Для следующего вопроса нажми «Новый вопрос»'
         fields['is_correct'] = True
     else:
