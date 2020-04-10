@@ -9,6 +9,8 @@ from questions import get_question, read_quiz_file, get_result, get_message_for_
 from settings import QUESTIONS_FILE, PROXY_URL, TELEGRAM_TOKEN, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, \
     SOLUTION_ATTEMPT, NEW_QUESTION, POSTFIX_TELEGRAM
 
+logger = logging.getLogger(__file__)
+
 
 def get_keyboard():
     keyboard = [['Новый вопрос', 'Сдаться'],
@@ -61,8 +63,10 @@ def cancel_quiz(bot, update):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', )
-    logger = logging.getLogger(__name__)
+    logging.basicConfig(
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        level=logging.INFO
+    )
     logger.setLevel(logging.WARNING)
 
     r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, password=REDIS_PASSWORD)
